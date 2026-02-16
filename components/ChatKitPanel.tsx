@@ -19,17 +19,18 @@ export type FactAction = {
   factText: string;
 };
 
-// ✅ NEW: Type for conversation messages
-export type ConversationMessage = {
-  role: string;
-  content: string;
-  timestamp?: string;
+export type LeadData = {
+  intent: string;
+  name: string;
+  email: string;
+  phone: string;
+  project_location: string;
 };
 
 type ChatKitPanelProps = {
   theme: ColorScheme;
   onWidgetAction: (action: FactAction) => Promise<void>;
-  onResponseEnd: (messages: ConversationMessage[]) => void; // ✅ UPDATED
+  onLeadCapture: (lead: LeadData) => void;
   onThemeRequest: (scheme: ColorScheme) => void;
 };
 
@@ -53,7 +54,7 @@ const createInitialErrors = (): ErrorState => ({
 export function ChatKitPanel({
   theme,
   onWidgetAction,
-  onResponseEnd,
+  onLeadCapture,
   onThemeRequest,
 }: ChatKitPanelProps) {
   const processedFacts = useRef(new Set<string>());
@@ -68,9 +69,6 @@ export function ChatKitPanel({
       : "pending"
   );
   const [widgetInstanceKey, setWidgetInstanceKey] = useState(0);
-  
-  // ✅ NEW: Store conversation messages locally
-  const conversationMessages = useRef<ConversationMessage[]>([]);
 
   const setErrorState = useCallback((updates: Partial<ErrorState>) => {
     setErrors((current) => ({ ...current, ...updates }));
@@ -157,7 +155,6 @@ export function ChatKitPanel({
 
   const handleResetChat = useCallback(() => {
     processedFacts.current.clear();
-    conversationMessages.current = []; // ✅ NEW: Clear messages on reset
     if (isBrowser) {
       setScriptStatus(
         window.customElements?.get("openai-chatkit") ? "ready" : "pending"
@@ -321,42 +318,61 @@ export function ChatKitPanel({
         return { success: true };
       }
 
-      // ✅ NEW: Handle lead capture tool
-      if (invocation.name === "capture_lead") {
-        const name = String(invocation.params.name || "");
-        const email = String(invocation.params.email || "");
-        const phone = String(invocation.params.phone || "");
-        
-        if (isDev) {
-          console.log("[ChatKitPanel] Lead captured:", { name, email, phone });
+      // ✅ NEW: Handle lead submission
+      if (invocation.name === "submit_lead_to_hubspot") {
+        const lead: LeadData = {
+          intent: String(invocation.params.intent || ""),
+          name: String(invocation.params.name || ""),
+          email: String(invocation.params.email || ""),
+          phone: String(invocation.params.phone || ""),
+          project_location: String(invocation.params.project_location || ""),
+        };
+
+        // Validate required fields
+        const required: (keyof LeadData)[] = ["intent", "name", "email", "phone", "project_location"];
+        const missingFields = required.filter(
+          (field) => !lead[field] || lead[field].trim().length === 0
+        );
+
+        if (missingFields.length > 0) {
+          if (isDev) {
+            console.warn("[ChatKitPanel] Missing required fields:", missingFields);
+          }
+          return {
+            success: false,
+            error: `Missing required fields: ${missingFields.join(", ")}`,
+          };
         }
-        
-        // Store in conversation for later HubSpot submission
-        conversationMessages.current.push({
-          role: "system",
-          content: JSON.stringify({ type: "lead", name, email, phone }),
-          timestamp: new Date().toISOString(),
-        });
-        
-        return { success: true };
+
+        if (isDev) {
+          console.log("[ChatKitPanel] Lead captured:", lead);
+        }
+
+        // Dedupe check
+        const dedupeKey = `lead_sent_${lead.email}_${lead.phone}_${lead.intent}`;
+        if (typeof window !== "undefined") {
+          if (sessionStorage.getItem(dedupeKey) === "1") {
+            if (isDev) {
+              console.log("[ChatKitPanel] Lead already submitted, skipping");
+            }
+            return { success: true, message: "Lead already submitted" };
+          }
+          sessionStorage.setItem(dedupeKey, "1");
+        }
+
+        // Pass to parent component
+        onLeadCapture(lead);
+
+        return { success: true, message: "Lead captured successfully" };
       }
 
       return { success: false };
-    },
-    onResponseEnd: () => {
-      // ✅ NEW: Pass messages to parent
-      onResponseEnd([...conversationMessages.current]);
-      
-      if (isDev) {
-        console.log("[ChatKitPanel] Conversation messages:", conversationMessages.current);
-      }
     },
     onResponseStart: () => {
       setErrorState({ integration: null, retryable: false });
     },
     onThreadChange: () => {
       processedFacts.current.clear();
-      conversationMessages.current = []; // ✅ NEW: Clear on thread change
     },
     onError: ({ error }: { error: unknown }) => {
       console.error("ChatKit error", error);
