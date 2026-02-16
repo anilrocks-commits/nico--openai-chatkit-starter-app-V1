@@ -150,19 +150,19 @@ export function ChatKitPanel({
       return { success: false };
     },
 
-    // ✅ PASS THREAD MESSAGES BACK TO APP
-    onResponseEnd: () => {
-      const messages = Array.isArray(chatkit.messages)
-      ? chatkit.messages
-      : [];
-
-    onResponseEnd({ messages });
+ // ✅ FIXED: Pass conversation data on response end
+    onResponseEnd: (event) => {
+      // The event object contains the conversation data
+      // Access messages from the event or maintain your own state
+      const messages = event?.messages || [];
+      onResponseEnd({ messages });
     },
 
     onError: ({ error }) => {
       console.error("ChatKit error", error);
     },
   });
+
 
   const activeError = errors.session ?? errors.integration;
   const blockingError = errors.script ?? activeError;
