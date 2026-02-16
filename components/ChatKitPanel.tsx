@@ -286,19 +286,22 @@ export function ChatKitPanel({
     threadItemActions: {
       feedback: false,
     },
-    onClientTool: async (invocation: {
+   onClientTool: async (invocation: {
   name: string;
   params: Record<string, unknown>;
 }) => {
-  // ✅ FORCE LOG - Will show even in production
-  console.log("=== onClientTool FIRED ===");
-  console.log("Function:", invocation.name);
-  console.log("Params:", JSON.stringify(invocation.params));
+  // ✅ Store in window object - we can inspect this
+  if (typeof window !== "undefined") {
+    (window as any).lastClientTool = {
+      timestamp: new Date().toISOString(),
+      name: invocation.name,
+      params: invocation.params,
+    };
+  }
   
   if (invocation.name === "switch_theme") {
     const requested = invocation.params.theme;
     if (requested === "light" || requested === "dark") {
-      console.log("[switch_theme] Changing to:", requested);
       onThemeRequest(requested);
       return { success: true };
     }
@@ -321,8 +324,6 @@ export function ChatKitPanel({
   }
 
   if (invocation.name === "submit_lead_to_hubspot") {
-    console.log("🎯🎯🎯 SUBMIT LEAD CALLED 🎯🎯🎯");
-    
     const lead: LeadData = {
       intent: String(invocation.params.intent || ""),
       name: String(invocation.params.name || ""),
@@ -331,7 +332,10 @@ export function ChatKitPanel({
       project_location: String(invocation.params.project_location || ""),
     };
 
-    console.log("Lead data:", lead);
+    // ✅ Store lead in window so we can see it
+    if (typeof window !== "undefined") {
+      (window as any).lastLeadCapture = lead;
+    }
 
     // Validate
     const required: (keyof LeadData)[] = ["intent", "name", "email", "phone", "project_location"];
@@ -340,7 +344,6 @@ export function ChatKitPanel({
     );
 
     if (missingFields.length > 0) {
-      console.warn("Missing fields:", missingFields);
       return {
         success: false,
         error: `Missing: ${missingFields.join(", ")}`,
@@ -350,7 +353,6 @@ export function ChatKitPanel({
     // Dedupe
     const dedupeKey = `lead_sent_${lead.email}_${lead.phone}_${lead.intent}`;
     if (typeof window !== "undefined" && sessionStorage.getItem(dedupeKey) === "1") {
-      console.log("Already submitted, skipping");
       return { success: true, message: "Already submitted" };
     }
     
@@ -358,14 +360,12 @@ export function ChatKitPanel({
       sessionStorage.setItem(dedupeKey, "1");
     }
 
-    console.log("Calling onLeadCapture...");
+    // Call the handler
     onLeadCapture(lead);
-    console.log("onLeadCapture done");
 
     return { success: true, message: "Lead captured!" };
   }
 
-  console.log("Unknown function:", invocation.name);
   return { success: false };
 },
     onResponseStart: () => {
