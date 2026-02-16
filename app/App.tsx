@@ -47,16 +47,3 @@ export default function App() {
     </main>
   );
 }
-```
-
----
-
-## **3. Configure the Tool in OpenAI Agent Builder**
-
-Now go to your OpenAI Agent Builder and add this function:
-
-**Function Name:** `submit_lead_to_hubspot`
-
-**Description:** 
-```
-Submits collected lead information when the user has provided all required details: intent, name, email, phone, and project location. Call this function once you have confirmed all information with the user.
