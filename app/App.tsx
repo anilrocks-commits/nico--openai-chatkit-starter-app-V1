@@ -14,25 +14,20 @@ export default function App() {
   }, []);
 
   const handleLeadCapture = useCallback((lead: LeadData) => {
-    if (process.env.NODE_ENV !== "production") {
-      console.log("[App] Lead captured:", lead);
-    }
+  console.log("=== LEAD CAPTURE IN APP ===");
+  console.log("Lead:", lead);
 
-    // Send to WordPress parent page
-    if (typeof window !== "undefined" && window.parent) {
-      window.parent.postMessage(
-        {
-          type: "lead_capture",
-          payload: lead,
-        },
-        "*"
-      );
-      
-      if (process.env.NODE_ENV !== "production") {
-        console.log("[App] Lead sent to WordPress parent");
-      }
-    }
-  }, []);
+  if (typeof window !== "undefined" && window.parent) {
+    const message = {
+      type: "lead_capture",
+      payload: lead,
+    };
+    
+    console.log("Sending postMessage:", message);
+    window.parent.postMessage(message, "*");
+    console.log("postMessage sent!");
+  }
+}, []);
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-end bg-slate-100 dark:bg-slate-950">
