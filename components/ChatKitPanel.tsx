@@ -57,6 +57,13 @@ export function ChatKitPanel({
   onLeadCapture,
   onThemeRequest,
 }: ChatKitPanelProps) {
+  // ✅ Set a flag when component mounts
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      (window as any).chatKitPanelLoaded = true;
+      (window as any).chatKitPanelLoadTime = new Date().toISOString();
+    }
+  }, []);
   const processedFacts = useRef(new Set<string>());
   const [errors, setErrors] = useState<ErrorState>(() => createInitialErrors());
   const [isInitializingSession, setIsInitializingSession] = useState(true);
