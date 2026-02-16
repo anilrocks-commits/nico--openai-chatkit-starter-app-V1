@@ -46,7 +46,7 @@ export type FactAction = {
 type ChatKitPanelProps = {
   theme: ColorScheme;
   onWidgetAction: (action: FactAction) => Promise<void>;
-  onResponseEnd?: (conversation: any) => void;
+  onResponseEnd: (conversation: { messages: any[] }) => void;
   onThemeRequest: (scheme: ColorScheme) => void;
 };
 
