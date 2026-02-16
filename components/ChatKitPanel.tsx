@@ -61,13 +61,12 @@ export function ChatKitPanel({
   const [errors, setErrors] = useState<ErrorState>(() => createInitialErrors());
   const [isInitializingSession, setIsInitializingSession] = useState(true);
   const isMountedRef = useRef(true);
-  const [scriptStatus, setScriptStatus] = useState
-    "pending" | "ready" | "error"
-  >(() =>
-    isBrowser && window.customElements?.get("openai-chatkit")
-      ? "ready"
-      : "pending"
-  );
+  const [scriptStatus, setScriptStatus] = useState<"pending" | "ready" | "error">(
+    () =>
+      isBrowser && window.customElements?.get("openai-chatkit")
+        ? "ready"
+        : "pending"
+  ); // ✅ FIXED: Parenthesis placement
   const [widgetInstanceKey, setWidgetInstanceKey] = useState(0);
 
   const setErrorState = useCallback((updates: Partial<ErrorState>) => {
@@ -163,7 +162,7 @@ export function ChatKitPanel({
     setIsInitializingSession(true);
     setErrors(createInitialErrors());
     setWidgetInstanceKey((prev) => prev + 1);
-  }, []);
+  }, [setScriptStatus]); // ✅ FIXED: Added dependency
 
   const getClientSecret = useCallback(
     async (currentSecret: string | null) => {
@@ -318,7 +317,7 @@ export function ChatKitPanel({
         return { success: true };
       }
 
-      // ✅ NEW: Handle lead submission
+      // ✅ Handle lead submission
       if (invocation.name === "submit_lead_to_hubspot") {
         const lead: LeadData = {
           intent: String(invocation.params.intent || ""),
