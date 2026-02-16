@@ -7,18 +7,18 @@ export const CREATE_SESSION_ENDPOINT = "/api/create-session";
 
 export const STARTER_PROMPTS: StartScreenPrompt[] = [
   {
-    label: "I want to know about Image SEO",
-    prompt: "I want to know about Image SEO",
+    label: "I would like a louvre pergola quote",
+    prompt: "I would like a louvre pergola quote",
     icon: "search",
   },
   {
-    label: "I want to learn about Site Speed",
-    prompt: "I want to learn about Site Speed",
+    label: "I want to learn about louvre pergola range",
+    prompt: "I want to learn about louvre pergola range",
     icon: "search",
   },
   {
-    label: "Where can I learn about meta data",
-    prompt: "Where can I learn about meta data",
+    label: "What is the difference between Noosa and Byron Bay range",
+    prompt: "What is the difference between Noosa and Byron Bay range",
     icon: "search",
   },
 ];
