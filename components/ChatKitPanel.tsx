@@ -27,6 +27,17 @@ export type LeadData = {
   project_location: string;
 };
 
+interface WindowWithDebug extends Window {
+  chatKitPanelLoaded?: boolean;
+  chatKitPanelLoadTime?: string;
+  lastClientTool?: {
+    timestamp: string;
+    name: string;
+    params: Record<string, unknown>;
+  };
+  lastLeadCapture?: LeadData;
+}
+
 type ChatKitPanelProps = {
   theme: ColorScheme;
   onWidgetAction: (action: FactAction) => Promise<void>;
@@ -57,13 +68,6 @@ export function ChatKitPanel({
   onLeadCapture,
   onThemeRequest,
 }: ChatKitPanelProps) {
-  // ✅ Set a flag when component mounts
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      (window as any).chatKitPanelLoaded = true;
-      (window as any).chatKitPanelLoadTime = new Date().toISOString();
-    }
-  }, []);
   const processedFacts = useRef(new Set<string>());
   const [errors, setErrors] = useState<ErrorState>(() => createInitialErrors());
   const [isInitializingSession, setIsInitializingSession] = useState(true);
@@ -73,8 +77,16 @@ export function ChatKitPanel({
       isBrowser && window.customElements?.get("openai-chatkit")
         ? "ready"
         : "pending"
-  ); // ✅ FIXED: Parenthesis placement
+  );
   const [widgetInstanceKey, setWidgetInstanceKey] = useState(0);
+
+  // Set a flag when component mounts
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      (window as WindowWithDebug).chatKitPanelLoaded = true;
+      (window as WindowWithDebug).chatKitPanelLoadTime = new Date().toISOString();
+    }
+  }, []);
 
   const setErrorState = useCallback((updates: Partial<ErrorState>) => {
     setErrors((current) => ({ ...current, ...updates }));
@@ -169,7 +181,7 @@ export function ChatKitPanel({
     setIsInitializingSession(true);
     setErrors(createInitialErrors());
     setWidgetInstanceKey((prev) => prev + 1);
-  }, [setScriptStatus]); // ✅ FIXED: Added dependency
+  }, [setScriptStatus]);
 
   const getClientSecret = useCallback(
     async (currentSecret: string | null) => {
@@ -293,88 +305,91 @@ export function ChatKitPanel({
     threadItemActions: {
       feedback: false,
     },
-   onClientTool: async (invocation: {
-  name: string;
-  params: Record<string, unknown>;
-}) => {
-  // ✅ Store in window object - we can inspect this
-  if (typeof window !== "undefined") {
-    (window as any).lastClientTool = {
-      timestamp: new Date().toISOString(),
-      name: invocation.name,
-      params: invocation.params,
-    };
-  }
-  
-  if (invocation.name === "switch_theme") {
-    const requested = invocation.params.theme;
-    if (requested === "light" || requested === "dark") {
-      onThemeRequest(requested);
-      return { success: true };
-    }
-    return { success: false };
-  }
+    onClientTool: async (invocation: {
+      name: string;
+      params: Record<string, unknown>;
+    }) => {
+      // Store in window object for debugging
+      if (typeof window !== "undefined") {
+        (window as WindowWithDebug).lastClientTool = {
+          timestamp: new Date().toISOString(),
+          name: invocation.name,
+          params: invocation.params,
+        };
+      }
 
-  if (invocation.name === "record_fact") {
-    const id = String(invocation.params.fact_id ?? "");
-    const text = String(invocation.params.fact_text ?? "");
-    if (!id || processedFacts.current.has(id)) {
-      return { success: true };
-    }
-    processedFacts.current.add(id);
-    void onWidgetAction({
-      type: "save",
-      factId: id,
-      factText: text.replace(/\s+/g, " ").trim(),
-    });
-    return { success: true };
-  }
+      if (invocation.name === "switch_theme") {
+        const requested = invocation.params.theme;
+        if (requested === "light" || requested === "dark") {
+          if (isDev) {
+            console.debug("[ChatKitPanel] switch_theme", requested);
+          }
+          onThemeRequest(requested);
+          return { success: true };
+        }
+        return { success: false };
+      }
 
-  if (invocation.name === "submit_lead_to_hubspot") {
-    const lead: LeadData = {
-      intent: String(invocation.params.intent || ""),
-      name: String(invocation.params.name || ""),
-      email: String(invocation.params.email || ""),
-      phone: String(invocation.params.phone || ""),
-      project_location: String(invocation.params.project_location || ""),
-    };
+      if (invocation.name === "record_fact") {
+        const id = String(invocation.params.fact_id ?? "");
+        const text = String(invocation.params.fact_text ?? "");
+        if (!id || processedFacts.current.has(id)) {
+          return { success: true };
+        }
+        processedFacts.current.add(id);
+        void onWidgetAction({
+          type: "save",
+          factId: id,
+          factText: text.replace(/\s+/g, " ").trim(),
+        });
+        return { success: true };
+      }
 
-    // ✅ Store lead in window so we can see it
-    if (typeof window !== "undefined") {
-      (window as any).lastLeadCapture = lead;
-    }
+      if (invocation.name === "submit_lead_to_hubspot") {
+        const lead: LeadData = {
+          intent: String(invocation.params.intent || ""),
+          name: String(invocation.params.name || ""),
+          email: String(invocation.params.email || ""),
+          phone: String(invocation.params.phone || ""),
+          project_location: String(invocation.params.project_location || ""),
+        };
 
-    // Validate
-    const required: (keyof LeadData)[] = ["intent", "name", "email", "phone", "project_location"];
-    const missingFields = required.filter(
-      (field) => !lead[field] || lead[field].trim().length === 0
-    );
+        // Store lead in window for debugging
+        if (typeof window !== "undefined") {
+          (window as WindowWithDebug).lastLeadCapture = lead;
+        }
 
-    if (missingFields.length > 0) {
-      return {
-        success: false,
-        error: `Missing: ${missingFields.join(", ")}`,
-      };
-    }
+        // Validate required fields
+        const required: (keyof LeadData)[] = ["intent", "name", "email", "phone", "project_location"];
+        const missingFields = required.filter(
+          (field) => !lead[field] || lead[field].trim().length === 0
+        );
 
-    // Dedupe
-    const dedupeKey = `lead_sent_${lead.email}_${lead.phone}_${lead.intent}`;
-    if (typeof window !== "undefined" && sessionStorage.getItem(dedupeKey) === "1") {
-      return { success: true, message: "Already submitted" };
-    }
-    
-    if (typeof window !== "undefined") {
-      sessionStorage.setItem(dedupeKey, "1");
-    }
+        if (missingFields.length > 0) {
+          return {
+            success: false,
+            error: `Missing required fields: ${missingFields.join(", ")}`,
+          };
+        }
 
-    // Call the handler
-    onLeadCapture(lead);
+        // Dedupe check
+        const dedupeKey = `lead_sent_${lead.email}_${lead.phone}_${lead.intent}`;
+        if (typeof window !== "undefined" && sessionStorage.getItem(dedupeKey) === "1") {
+          return { success: true, message: "Lead already submitted" };
+        }
+        
+        if (typeof window !== "undefined") {
+          sessionStorage.setItem(dedupeKey, "1");
+        }
 
-    return { success: true, message: "Lead captured!" };
-  }
+        // Pass to parent component
+        onLeadCapture(lead);
 
-  return { success: false };
-},
+        return { success: true, message: "Lead captured successfully" };
+      }
+
+      return { success: false };
+    },
     onResponseStart: () => {
       setErrorState({ integration: null, retryable: false });
     },
