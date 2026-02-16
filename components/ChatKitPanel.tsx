@@ -152,10 +152,11 @@ export function ChatKitPanel({
 
     // ✅ PASS THREAD MESSAGES BACK TO APP
     onResponseEnd: () => {
-      const thread = chatkit.control?.thread;
-      const messages =
-        thread && Array.isArray(thread.items) ? thread.items : [];
-      onResponseEnd({ messages });
+      const messages = Array.isArray(chatkit.messages)
+      ? chatkit.messages
+      : [];
+
+    onResponseEnd({ messages });
     },
 
     onError: ({ error }) => {
