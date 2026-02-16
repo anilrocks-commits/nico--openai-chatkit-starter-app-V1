@@ -287,86 +287,87 @@ export function ChatKitPanel({
       feedback: false,
     },
     onClientTool: async (invocation: {
-      name: string;
-      params: Record<string, unknown>;
-    }) => {
-      if (invocation.name === "switch_theme") {
-        const requested = invocation.params.theme;
-        if (requested === "light" || requested === "dark") {
-          if (isDev) {
-            console.debug("[ChatKitPanel] switch_theme", requested);
-          }
-          onThemeRequest(requested);
-          return { success: true };
-        }
-        return { success: false };
-      }
+  name: string;
+  params: Record<string, unknown>;
+}) => {
+  // ✅ FORCE LOG - Will show even in production
+  console.log("=== onClientTool FIRED ===");
+  console.log("Function:", invocation.name);
+  console.log("Params:", JSON.stringify(invocation.params));
+  
+  if (invocation.name === "switch_theme") {
+    const requested = invocation.params.theme;
+    if (requested === "light" || requested === "dark") {
+      console.log("[switch_theme] Changing to:", requested);
+      onThemeRequest(requested);
+      return { success: true };
+    }
+    return { success: false };
+  }
 
-      if (invocation.name === "record_fact") {
-        const id = String(invocation.params.fact_id ?? "");
-        const text = String(invocation.params.fact_text ?? "");
-        if (!id || processedFacts.current.has(id)) {
-          return { success: true };
-        }
-        processedFacts.current.add(id);
-        void onWidgetAction({
-          type: "save",
-          factId: id,
-          factText: text.replace(/\s+/g, " ").trim(),
-        });
-        return { success: true };
-      }
+  if (invocation.name === "record_fact") {
+    const id = String(invocation.params.fact_id ?? "");
+    const text = String(invocation.params.fact_text ?? "");
+    if (!id || processedFacts.current.has(id)) {
+      return { success: true };
+    }
+    processedFacts.current.add(id);
+    void onWidgetAction({
+      type: "save",
+      factId: id,
+      factText: text.replace(/\s+/g, " ").trim(),
+    });
+    return { success: true };
+  }
 
-      // ✅ Handle lead submission
-      if (invocation.name === "submit_lead_to_hubspot") {
-        const lead: LeadData = {
-          intent: String(invocation.params.intent || ""),
-          name: String(invocation.params.name || ""),
-          email: String(invocation.params.email || ""),
-          phone: String(invocation.params.phone || ""),
-          project_location: String(invocation.params.project_location || ""),
-        };
+  if (invocation.name === "submit_lead_to_hubspot") {
+    console.log("🎯🎯🎯 SUBMIT LEAD CALLED 🎯🎯🎯");
+    
+    const lead: LeadData = {
+      intent: String(invocation.params.intent || ""),
+      name: String(invocation.params.name || ""),
+      email: String(invocation.params.email || ""),
+      phone: String(invocation.params.phone || ""),
+      project_location: String(invocation.params.project_location || ""),
+    };
 
-        // Validate required fields
-        const required: (keyof LeadData)[] = ["intent", "name", "email", "phone", "project_location"];
-        const missingFields = required.filter(
-          (field) => !lead[field] || lead[field].trim().length === 0
-        );
+    console.log("Lead data:", lead);
 
-        if (missingFields.length > 0) {
-          if (isDev) {
-            console.warn("[ChatKitPanel] Missing required fields:", missingFields);
-          }
-          return {
-            success: false,
-            error: `Missing required fields: ${missingFields.join(", ")}`,
-          };
-        }
+    // Validate
+    const required: (keyof LeadData)[] = ["intent", "name", "email", "phone", "project_location"];
+    const missingFields = required.filter(
+      (field) => !lead[field] || lead[field].trim().length === 0
+    );
 
-        if (isDev) {
-          console.log("[ChatKitPanel] Lead captured:", lead);
-        }
+    if (missingFields.length > 0) {
+      console.warn("Missing fields:", missingFields);
+      return {
+        success: false,
+        error: `Missing: ${missingFields.join(", ")}`,
+      };
+    }
 
-        // Dedupe check
-        const dedupeKey = `lead_sent_${lead.email}_${lead.phone}_${lead.intent}`;
-        if (typeof window !== "undefined") {
-          if (sessionStorage.getItem(dedupeKey) === "1") {
-            if (isDev) {
-              console.log("[ChatKitPanel] Lead already submitted, skipping");
-            }
-            return { success: true, message: "Lead already submitted" };
-          }
-          sessionStorage.setItem(dedupeKey, "1");
-        }
+    // Dedupe
+    const dedupeKey = `lead_sent_${lead.email}_${lead.phone}_${lead.intent}`;
+    if (typeof window !== "undefined" && sessionStorage.getItem(dedupeKey) === "1") {
+      console.log("Already submitted, skipping");
+      return { success: true, message: "Already submitted" };
+    }
+    
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem(dedupeKey, "1");
+    }
 
-        // Pass to parent component
-        onLeadCapture(lead);
+    console.log("Calling onLeadCapture...");
+    onLeadCapture(lead);
+    console.log("onLeadCapture done");
 
-        return { success: true, message: "Lead captured successfully" };
-      }
+    return { success: true, message: "Lead captured!" };
+  }
 
-      return { success: false };
-    },
+  console.log("Unknown function:", invocation.name);
+  return { success: false };
+},
     onResponseStart: () => {
       setErrorState({ integration: null, retryable: false });
     },
