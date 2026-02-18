@@ -238,7 +238,7 @@ export function ChatKitPanel({
                 project_location: { type: "string" },
               },
             },
-            ].
+            ],
           },
           }),
         });
