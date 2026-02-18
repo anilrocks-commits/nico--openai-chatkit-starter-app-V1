@@ -25,6 +25,7 @@ export type LeadData = {
   email: string;
   phone: string;
   project_location: string;
+  zip: string;
 };
 
 interface WindowWithDebug extends Window {
@@ -222,26 +223,30 @@ export function ChatKitPanel({
               file_upload: {
                 enabled: true,
               },
-              client_tool_definitions: [
+            },
+            client_tool_definitions: [
               {
+              type: "function",
               name: "submit_lead_to_hubspot",
               description: "Submits collected lead information to HubSpot",
               parameters: {
                 type: "object",
-                required: ["intent", "name", "email", "phone", "project_location"],
+                required: ["intent", "name", "email", "phone", "project_location", "zip"],
                 properties: {
                   intent: { type: "string" },
                   name: { type: "string" },
                   email: { type: "string" },
                   phone: { type: "string" },
                   project_location: { type: "string" },
+                  zip: { type: "string" },
                 },
+                additionalProperties: false,
               },
+              strict: true,
             },
           ],
-      },
-    }),
-  });
+        }),
+      });
 
 
         const raw = await response.text();
@@ -391,7 +396,7 @@ export function ChatKitPanel({
     }
 
     // 3. Notify the parent and store dedupe key
-    onLeadCapture(lead as LeadData);
+    onLeadCapture(lead);
     const dedupeKey = `lead_sent_${lead.email}`;
     if (typeof window !== "undefined") {
       sessionStorage.setItem(dedupeKey, "1");
