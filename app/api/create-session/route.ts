@@ -77,7 +77,7 @@ export async function POST(request: Request): Promise<Response> {
               parsedBody?.chatkit_configuration?.file_upload?.enabled ?? false,
           },
         },
-        tools: [
+        client_tool_definitions: [
           {
             type: "function",
             name: "submit_lead_to_hubspot",
