@@ -25,6 +25,7 @@ export type LeadData = {
   email: string;
   phone: string;
   project_location: string;
+  zip: string;
 };
 
 interface WindowWithDebug extends Window {
