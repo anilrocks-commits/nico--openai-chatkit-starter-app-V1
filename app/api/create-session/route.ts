@@ -78,7 +78,7 @@ export async function POST(request: Request): Promise<Response> {
           },
         },
         // Corrected tools placement and structure
-        tools: [
+        client_tool_definitions: [
           {
             type: "function",
             name: "submit_lead_to_hubspot",
@@ -97,8 +97,8 @@ export async function POST(request: Request): Promise<Response> {
               additionalProperties: false
             },
             strict: true
-          }
-        ]
+          },
+        ],
       }),
     });
 
