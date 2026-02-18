@@ -222,26 +222,27 @@ export function ChatKitPanel({
               file_upload: {
                 enabled: true,
               },
-            },
-            client_tool_definitions: [
-          {
-            name: "submit_lead_to_hubspot",
-            description: "Submits collected lead information to HubSpot",
-            parameters: {
-              type: "object",
-              required: ["intent", "name", "email", "phone", "project_location"],
-              properties: {
-                intent: { type: "string" },
-                name: { type: "string" },
-                email: { type: "string" },
-                phone: { type: "string" },
-                project_location: { type: "string" },
+              client_tool_definitions: [
+              {
+              name: "submit_lead_to_hubspot",
+              description: "Submits collected lead information to HubSpot",
+              parameters: {
+                type: "object",
+                required: ["intent", "name", "email", "phone", "project_location"],
+                properties: {
+                  intent: { type: "string" },
+                  name: { type: "string" },
+                  email: { type: "string" },
+                  phone: { type: "string" },
+                  project_location: { type: "string" },
+                },
               },
             },
-            ],
-          },
-          }),
-        });
+          ],
+      },
+    }),
+  });
+
 
         const raw = await response.text();
 
