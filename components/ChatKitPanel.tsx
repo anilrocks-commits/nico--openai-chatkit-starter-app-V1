@@ -364,47 +364,53 @@ export function ChatKitPanel({
       }
 
       if (invocation.name === "submit_lead_to_hubspot") {
-        const lead: LeadData = {
-          intent: String(invocation.params.intent || ""),
-          name: String(invocation.params.name || ""),
-          email: String(invocation.params.email || ""),
-          phone: String(invocation.params.phone || ""),
-          project_location: String(invocation.params.project_location || ""),
-        };
+  // 1. Prepare the lead data (including the 'zip' field which was missing)
+  const lead = {
+    intent: String(invocation.params.intent || ""),
+    name: String(invocation.params.name || ""),
+    email: String(invocation.params.email || ""),
+    phone: String(invocation.params.phone || ""),
+    project_location: String(invocation.params.project_location || ""),
+    zip: String(invocation.params.zip || ""), // Added zip
+  };
 
-        // Store lead in window for debugging
-        if (typeof window !== "undefined") {
-          (window as WindowWithDebug).lastLeadCapture = lead;
-        }
+  if (isDev) console.info("[ChatKitPanel] Submitting lead to API...", lead);
 
-        // Validate required fields
-        const required: (keyof LeadData)[] = ["intent", "name", "email", "phone", "project_location"];
-        const missingFields = required.filter(
-          (field) => !lead[field] || lead[field].trim().length === 0
-        );
+  try {
+    // 2. ACTUALLY CALL YOUR VERCEL API ROUTE
+    const response = await fetch("/api/lead-capture", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(lead),
+    });
 
-        if (missingFields.length > 0) {
-          return {
-            success: false,
-            error: `Missing required fields: ${missingFields.join(", ")}`,
-          };
-        }
+    const result = await response.json();
 
-        // Dedupe check
-        const dedupeKey = `lead_sent_${lead.email}_${lead.phone}_${lead.intent}`;
-        if (typeof window !== "undefined" && sessionStorage.getItem(dedupeKey) === "1") {
-          return { success: true, message: "Lead already submitted" };
-        }
-        
-        if (typeof window !== "undefined") {
-          sessionStorage.setItem(dedupeKey, "1");
-        }
+    if (!response.ok) {
+      throw new Error(result.error || "Failed to submit lead");
+    }
 
-        // Pass to parent component
-        onLeadCapture(lead);
+    // 3. Notify the parent and store dedupe key
+    onLeadCapture(lead as LeadData);
+    const dedupeKey = `lead_sent_${lead.email}`;
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem(dedupeKey, "1");
+    }
 
-        return { success: true, message: "Lead captured successfully" };
-      }
+    // 4. Return success message back to the AI Agent
+    return { 
+      success: true, 
+      message: "Lead successfully submitted to HubSpot." 
+    };
+
+  } catch (apiError) {
+    console.error("[ChatKitPanel] API Submission Error:", apiError);
+    return { 
+      success: false, 
+      error: apiError instanceof Error ? apiError.message : "Internal API error" 
+    };
+  }
+}
 
       return { success: false };
     },
