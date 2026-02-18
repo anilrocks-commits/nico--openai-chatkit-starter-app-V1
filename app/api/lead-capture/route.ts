@@ -20,8 +20,8 @@ export async function POST(request: NextRequest) {
     console.log('[Lead Capture API] Extracted lead:', lead);
 
     // Validate required fields
-    const required = ['intent', 'name', 'email', 'phone', 'project_location'];
-    const missing = required.filter(field => !lead[field as keyof typeof lead]?.trim());
+  const required = ['intent', 'name', 'email', 'phone', 'project_location', 'zip']; // ✅ ADD 'zip'
+  const missing = required.filter(field => !lead[field as keyof typeof lead]?.trim());
     
     if (missing.length > 0) {
       console.error('[Lead Capture API] Missing fields:', missing);
@@ -61,6 +61,10 @@ export async function POST(request: NextRequest) {
         {
           name: 'phone',
           value: lead.phone,
+        },
+        {
+          name: 'zip',
+          value: lead.zip, // ✅ USE ACTUAL ZIP FROM LEAD DATA
         },
         {
           name: 'message',
