@@ -14,6 +14,7 @@ export async function POST(request: NextRequest) {
       email: String(body.email || ''),
       phone: String(body.phone || ''),
       project_location: String(body.project_location || ''),
+      zip: String(body.zip || ''),
     };
 
     console.log('[Lead Capture API] Extracted lead:', lead);
