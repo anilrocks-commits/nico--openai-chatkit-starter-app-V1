@@ -11,6 +11,7 @@ interface CreateSessionRequestBody {
       enabled?: boolean;
     };
   };
+  client_tool_definitions?: unknown[];
 }
 
 const DEFAULT_CHATKIT_BASE = "https://api.openai.com";
@@ -61,7 +62,7 @@ export async function POST(request: Request): Promise<Response> {
 
     const apiBase = process.env.CHATKIT_API_BASE ?? DEFAULT_CHATKIT_BASE;
     const url = `${apiBase}/v1/chatkit/sessions`;
-    
+
     const upstreamResponse = await fetch(url, {
       method: "POST",
       headers: {
@@ -74,31 +75,15 @@ export async function POST(request: Request): Promise<Response> {
         user: userId,
         chatkit_configuration: {
           file_upload: {
-            enabled: parsedBody?.chatkit_configuration?.file_upload?.enabled ?? false,
+            enabled:
+              parsedBody?.chatkit_configuration?.file_upload?.enabled ?? false,
           },
         },
-        // Corrected tools placement and structure
-        client_tool_definitions: [
-          {
-            type: "function",
-            name: "submit_lead_to_hubspot",
-            description: "Submits collected lead information once all required details are provided and confirmed by the user",
-            parameters: {
-              type: "object",
-              required: ["intent", "name", "email", "phone", "project_location", "zip"],
-              properties: {
-                intent: { type: "string", description: "The user's stated intent" },
-                name: { type: "string", description: "Full name" },
-                email: { type: "string", description: "Email address" },
-                phone: { type: "string", description: "Phone number" },
-                project_location: { type: "string", description: "Project suburb" },
-                zip: { type: "string", description: "Postal code" }
-              },
-              additionalProperties: false
-            },
-            strict: true
-          },
-        ],
+        ...(Array.isArray(parsedBody?.client_tool_definitions)
+          ? {
+              client_tool_definitions: parsedBody.client_tool_definitions,
+            }
+          : {}),
       }),
     });
 
