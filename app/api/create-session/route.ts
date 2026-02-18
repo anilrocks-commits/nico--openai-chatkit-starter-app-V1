@@ -77,6 +77,27 @@ export async function POST(request: Request): Promise<Response> {
               parsedBody?.chatkit_configuration?.file_upload?.enabled ?? false,
           },
         },
+        tools: [
+          {
+            type: "function",
+            name: "submit_lead_to_hubspot",
+            description: "Submits collected lead information once all required details are provided and confirmed by the user",
+            parameters: {
+              type: "object",
+              required: ["intent", "name", "email", "phone", "project_location", "zip"],
+              properties: {
+                intent: { type: "string", description: "The user's stated intent" },
+                name: { type: "string", description: "Full name" },
+                email: { type: "string", description: "Email address" },
+                phone: { type: "string", description: "Phone number" },
+                project_location: { type: "string", description: "Project suburb" },
+                zip: { type: "string", description: "Postal code" }
+              },
+              additionalProperties: false
+            },
+            strict: true
+          }
+        ]
       }),
     });
 
