@@ -39,6 +39,29 @@ interface WindowWithDebug extends Window {
   lastLeadCapture?: LeadData;
 }
 
+// Define client tools for ChatKit
+const CLIENT_TOOLS = [
+  {
+    type: "function",
+    name: "submit_lead_to_hubspot",
+    description: "Submits collected lead information to HubSpot",
+    parameters: {
+      type: "object",
+      required: ["intent", "name", "email", "phone", "project_location", "zip"],
+      properties: {
+        intent: { type: "string", description: "User's intent or reason for contact" },
+        name: { type: "string", description: "Full name" },
+        email: { type: "string", description: "Email address" },
+        phone: { type: "string", description: "Phone number" },
+        project_location: { type: "string", description: "Project location" },
+        zip: { type: "string", description: "Postal/zip code" },
+      },
+      additionalProperties: false,
+    },
+    strict: true,
+  },
+] as const;
+
 type ChatKitPanelProps = {
   theme: ColorScheme;
   onWidgetAction: (action: FactAction) => Promise<void>;
@@ -223,31 +246,10 @@ export function ChatKitPanel({
               file_upload: {
                 enabled: true,
               },
+              client_tool_definitions: CLIENT_TOOLS,
             },
-            client_tool_definitions: [
-              {
-              type: "function",
-              name: "submit_lead_to_hubspot",
-              description: "Submits collected lead information to HubSpot",
-              parameters: {
-                type: "object",
-                required: ["intent", "name", "email", "phone", "project_location", "zip"],
-                properties: {
-                  intent: { type: "string" },
-                  name: { type: "string" },
-                  email: { type: "string" },
-                  phone: { type: "string" },
-                  project_location: { type: "string" },
-                  zip: { type: "string" },
-                },
-                additionalProperties: false,
-              },
-              strict: true,
-            },
-          ],
-        }),
-      });
-
+          }),
+        });
 
         const raw = await response.text();
 
@@ -369,53 +371,67 @@ export function ChatKitPanel({
       }
 
       if (invocation.name === "submit_lead_to_hubspot") {
-  // 1. Prepare the lead data (including the 'zip' field which was missing)
-  const lead = {
-    intent: String(invocation.params.intent || ""),
-    name: String(invocation.params.name || ""),
-    email: String(invocation.params.email || ""),
-    phone: String(invocation.params.phone || ""),
-    project_location: String(invocation.params.project_location || ""),
-    zip: String(invocation.params.zip || ""), // Added zip
-  };
+        try {
+          // Prepare the lead data
+          const lead: LeadData = {
+            intent: String(invocation.params.intent || ""),
+            name: String(invocation.params.name || ""),
+            email: String(invocation.params.email || ""),
+            phone: String(invocation.params.phone || ""),
+            project_location: String(invocation.params.project_location || ""),
+            zip: String(invocation.params.zip || ""),
+          };
 
-  if (isDev) console.info("[ChatKitPanel] Submitting lead to API...", lead);
+          // Store for debugging
+          if (typeof window !== "undefined") {
+            (window as WindowWithDebug).lastLeadCapture = lead;
+          }
 
-  try {
-    // 2. ACTUALLY CALL YOUR VERCEL API ROUTE
-    const response = await fetch("/api/lead-capture", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(lead),
-    });
+          if (isDev) {
+            console.info("[ChatKitPanel] Submitting lead to API...", lead);
+          }
 
-    const result = await response.json();
+          // Call the Vercel API route
+          const response = await fetch("/api/lead-capture", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(lead),
+          });
 
-    if (!response.ok) {
-      throw new Error(result.error || "Failed to submit lead");
-    }
+          const result = await response.json();
 
-    // 3. Notify the parent and store dedupe key
-    onLeadCapture(lead);
-    const dedupeKey = `lead_sent_${lead.email}`;
-    if (typeof window !== "undefined") {
-      sessionStorage.setItem(dedupeKey, "1");
-    }
+          if (!response.ok || !result.success) {
+            console.error("[ChatKitPanel] API error:", result);
+            return {
+              success: false,
+              error: result.error || "Failed to submit lead",
+            };
+          }
 
-    // 4. Return success message back to the AI Agent
-    return { 
-      success: true, 
-      message: "Lead successfully submitted to HubSpot." 
-    };
+          console.log("[ChatKitPanel] Lead submitted successfully:", result);
 
-  } catch (apiError) {
-    console.error("[ChatKitPanel] API Submission Error:", apiError);
-    return { 
-      success: false, 
-      error: apiError instanceof Error ? apiError.message : "Internal API error" 
-    };
-  }
-}
+          // Notify parent component
+          onLeadCapture(lead);
+
+          // Set dedupe key
+          const dedupeKey = `lead_sent_${lead.email}`;
+          if (typeof window !== "undefined") {
+            sessionStorage.setItem(dedupeKey, "1");
+          }
+
+          // Return success to OpenAI
+          return {
+            success: true,
+            message: result.message || "Lead successfully submitted to HubSpot.",
+          };
+        } catch (error) {
+          console.error("[ChatKitPanel] Error submitting lead:", error);
+          return {
+            success: false,
+            error: error instanceof Error ? error.message : "Unknown error",
+          };
+        }
+      }
 
       return { success: false };
     },
